@@ -1,0 +1,147 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+#map, #cesiumContainer {
+  position: absolute;
+  top: 5%;
+  left: 5%;
+  height: 90%;
+  width: 90%;
+}
+#map {
+  opacity: 1;
+  transition: opacity .2s;
+}
+#ctoggle {
+  position: absolute;
+  left: 50%;
+  margin-left: -1em;
+  bottom: 10%;
+  background-color: rgba(255,255,255,0.4);
+  border-radius: 4px;
+  width: 3em;
+  height: 1em;
+  font-size: 2em;
+  border: 3px solid rgba(255,255,255,0);
+}
+#ctoggle span {
+  width: 50%;
+  text-align:center;
+  float:left;
+  height: 100%;
+  line-height: 2em;
+}
+.d2 {
+  color: white;
+}
+#indicator {
+  width: 1.5em;
+  height: 1em;
+  background-color: rgba(0,60,136,0.5);
+  position: absolute;
+  top: 0;
+  left: 0;
+  transition: left 1s;
+  border-radius: 4px 0 0 4px;
+}
+#ctoggle button {
+  padding: 0;
+  position: absolute;
+  border: none;
+  height: 100%;
+  width: 100%;
+  background: transparent;
+  outline: none;
+}
+.rosace {
+  position: absolute;
+  top: calc(6% + 1.325em);
+  right: calc(6% + 1.325em);
+  width: 1em;
+  height: 1em;
+  font-size: 1.6em;
+  background-color: rgba(50,110,186,0.5);
+}
+#pan {
+  top: calc(6% + 6em);
+}
+.rosace:after {
+  content: '➢';
+  transform: rotate(-90deg);
+  -webkit-transform: rotate(-90deg);
+  -moz-transform: rotate(-90deg);
+  font-size: .8em;
+  color: white;
+  display: block;
+  transition: all .3s;
+}
+.rosace.west:after {
+  transform: rotate(180deg);
+  -webkit-transform: rotate(180deg);
+  -moz-transform: rotate(180deg);
+}
+.rosace.east:after {
+  transform: rotate(0deg);
+  -webkit-transform: rotate(0deg);
+  -moz-transform: rotate(0deg);
+}
+.rosace.south:after {
+  transform: rotate(90deg);
+  -webkit-transform: rotate(90deg);
+  -moz-transform: rotate(90deg);
+}
+#pan:after {
+  content: '';
+}
+.rosace a {
+  box-sizing: border-box;
+  padding: .2em;
+  position: absolute;
+  background-color: rgba(50,110,186,0.5);
+  color: #fff;
+  font-weight: bold;
+  font-family: Arial;
+  text-decoration: none;
+  text-align: center;
+  line-height: .8em;
+}
+.rosace a:hover {
+  background-color: rgba(0,60,136,0.7);
+  color: white;
+}
+a[id*=north], a[id*=south] {
+  width: 1em;
+  height: 1.3em;
+  left: 0;
+}
+a[id*=north] {
+  top: -1.3em;
+  box-shadow: 0 -3px 0 rgba(255,255,255,0.4), 3px 0 0 rgba(255,255,255,0.4), -3px 0 0 rgba(255,255,255,0.4);
+  border-radius: 4px 4px 0 0;
+}
+a[id*=south] {
+  bottom: -1.3em;
+  outline-top-width: 0;
+  box-shadow: 0 3px 0 rgba(255,255,255,0.4), 3px 0 0 rgba(255,255,255,0.4), -3px 0 0 rgba(255,255,255,0.4);
+  border-radius: 0 0 4px 4px;
+}
+.rosace [id*=west], .rosace [id*=east] {
+  width: 1.3em;
+  height: 1em;
+  top: 0;
+  line-height: .5em;
+}
+a[id*=west] {
+  left: -1.3em;
+  box-shadow: 0 3px 0 rgba(255,255,255,0.4), 0 -3px 0 rgba(255,255,255,0.4), -3px 0 0 rgba(255,255,255,0.4);
+  border-radius: 4px 0 0 4px;
+}
+a[id*=east] {
+  right: -1.3em;
+  outline-left-width: 0;
+  box-shadow: 0 3px 0 rgba(255,255,255,0.4), 0 -3px 0 0 rgba(255,255,255,0.4), 3px 0 0 rgba(255,255,255,0.4);
+  border-radius: 0 4px 4px 0;
+}
