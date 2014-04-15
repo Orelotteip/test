@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1">  <!-- Use Chrome Frame in IE -->
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+    <title>Cesium Demo</title>
+    <script src="Cesium.js"></script>
+    <script src="http://ol3js.org/en/master/build/ol.js"></script>
+    <link rel="stylesheet" href="http://cesiumjs.org/Cesium/Apps/Sandcastle/templates/bucket.css">
+    <link rel="stylesheet" href="http://ol3js.org/en/master/css/ol.css" type="text/css">
+    <link rel="stylesheet" href="style.css" type="text/css">
+  </head>
+  <body>
+    <div id="cesiumContainer"></div>
+    <div id="map"></div>
+    <div id=ctoggle>
+      <span id=indicator></span>
+      <button id=toggle>
+        <span class=d2>2D</span>
+        <span class=d3>3D</span>
+      </button>
+    </div>
+    <div class="rosace">
+      <a href="#" id="north">&#8593;</a>
+      <a href="#" id="east">&#8594;</a>
+      <a href="#" id="south">&#8595;</a>
+      <a href="#" id="west">&#8592;</a>
+    </div>
+    <div class="rosace" id=pan>
+      <a href="#" id="p_north">&#8593;</a>
+      <a href="#" id="p_east">&#8594;</a>
+      <a href="#" id="p_south">&#8595;</a>
+      <a href="#" id="p_west">&#8592;</a>
+    </div>
+    <script>
+    /***************************************************************/
+    /* CESIUM WIDGET
+    /***************************************************************/
+
+      var widget = new Cesium.Viewer('cesiumContainer', {
+        baseLayerPicker: false,
+        fullscreenButton: false,
+        homeButton: false,
+        sceneModePicker: false,
+        selectionIndicator: false,
+        timeline: false,
+        animation: false,
+        geocoder: false
+      });
+      var scene = widget.scene;
+      var camera = scene.camera;
+
+      // Add terrain
+      var terrainProvider = new Cesium.CesiumTerrainProvider({
+        url : 'http://cesiumjs.org/smallterrain'
+      });
+      // var terrainProvider = new Cesium.EllipsoidTerrainProvider();
+      widget.centralBody.terrainProvider = terrainProvider;
+
+      // Disable Cesium interactions
+      var controller = widget.scene.screenSpaceCameraController;
+      controller.enableInputs = false;
+
+    /***************************************************************/
+    /* OPEN LAYER VECTOR SOURCE
+    /***************************************************************/
+
+      var vectorSource = new ol.source.GeoJSON({
+        url: 'trucks.json',
+        projection: 'EPSG:3857'
+      });
+
+      var iconStyle = new ol.style.Style({
+        image: new ol.style.Icon(/** @type {olx.style.IconOptions} */ ({
+          anchor: [0.5, 37],
+          anchorXUnits: 'fraction',
+          anchorYUnits: 'pixels',
+          src: 'image.png'
+        }))
+      });
+//      var iconStyle = new ol.style.Style({
+//        image: new ol.style.Circle({
+//          radius: 5.5,
+//          fill: new ol.style.Fill({
+//            color: '#FF0'
+//          }),
+//          stroke: new ol.style.Stroke({
+//            color: '#000',
+//            width: 1.2
+//          })
+//        })
+//      });
+      var lineStyle = new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: '#FF0',
+          width: 2.5
+        })
+      });
+
+      var vectorLayer = new ol.layer.Vector({
+        source: vectorSource,
+        style: [ iconStyle, lineStyle]
+      });
+
+    /***************************************************************/
+    /* CESIUM JSON DATA SOURCE
+    /***************************************************************/
+
+      // Workaround for https://github.com/AnalyticalGraphicsInc/cesium/issues/1603
+      Cesium.GeoJsonDataSource.prototype.getIsTimeVarying = function() {
+          return true;
+      };
+
+      var gjds = new Cesium.GeoJsonDataSource();
+      var defaultPoint = gjds.defaultPoint;
+      defaultPoint.point = undefined;
+      var billboard = new Cesium.DynamicBillboard();
+      billboard.getValue = function() { return 'image.png' };
+      billboard.image = new Cesium.ConstantProperty('image.png');
+      billboard.horizontalOrigin = new Cesium.ConstantProperty(Cesium.HorizontalOrigin.CENTER);
+      billboard.verticalOrigin = new Cesium.ConstantProperty(Cesium.VerticalOrigin.BOTTOM);
+      billboard.scaleByDistance = undefined;
+      defaultPoint.billboard = billboard;
+      gjds.loadUrl('trucks.json').then(function() {
+          widget.dataSources.add(gjds);
+      });
+
+    /***************************************************************/
+    /* OPEN LAYER MAP
+    /***************************************************************/
+
+      var map = new ol.Map({
+        renderer: 'canvas',
+        layers: [
+          new ol.layer.Tile({
+            source: new ol.source.BingMaps({
+              key: 'Ak-dzM4wZjSqTlzveKz5u0d4IQ4bRzVI309GxmkgSVr1ewS6iPSrOvOKhA-CJlm3',
+              imagerySet: 'Aerial'
+            })
+          }),
+          vectorLayer
+        ],
+        target: 'map',
+        interactions: ol.interaction.defaults({
+          //altShiftDragRotate: false
+        }),
+        view: new ol.View2D({
+          center: [0, 0],
+          zoom: 2
+        })
+      });
+
+    /***************************************************************/
+    /* init
+    /***************************************************************/
+
+      var cext;
+      var rotation = 0;
+      var tilted = false;
+
+    /***************************************************************/
+    /* OPEN LAYER VIEW
+    /***************************************************************/
+
+      var view = map.getView().getView2D();
+
+    /***************************************************************/
+    /* OPEN LAYER MAP postcompose
+    /***************************************************************/
+
+      map.on('postcompose', function(event) {
+        var framestate = event.frameState;
+        var extent = framestate.extent;
+        rotation = framestate.view2DState.rotation;
+        extent = ol.proj.transform(extent, 'EPSG:3857', 'EPSG:4326');
+
+    /***************************************************************/
+    /* CESIUM EXTENT
+    /***************************************************************/
+
+        var west = Cesium.Math.toRadians(extent[0]);
+        var south = Cesium.Math.toRadians(extent[1]);
+        var east = Cesium.Math.toRadians(extent[2]);
+        var north = Cesium.Math.toRadians(extent[3]);
+        cext = new Cesium.Extent(west, south, east, north);
+        camera.viewExtent(cext);
+        camera.twistLeft(rotation);
+        if (tilted) {
+          setTiltedView(true);
+        }
+      });
+
+    /***************************************************************/
+    /* OPEN LAYER init
+    /***************************************************************/
+
+      view.setZoom(11);
+      view.setCenter([653667.1370353698, 5673479.418388908]);
+
+    /***************************************************************/
+    /* setTiltedView
+    /***************************************************************/
+
+      var setTiltedView = function(angle, duration) {
+        var up = true;
+
+        if (angle > 0) {
+            camera.viewExtent(cext);
+            camera.twistLeft(rotation);
+        } else {
+            angle = -angle;
+            up = false;
+        }
+        var ellipsoid = Cesium.Ellipsoid.WGS84;
+        var cameraHeight = ellipsoid.cartesianToCartographic(camera.position).height;
+        var cameraMagnitude = Cesium.Cartesian3.magnitude(camera.position);
+        var frustum = camera.frustum;
+        var fov = frustum.fovy;
+
+        var beta = angle - fov/2;
+        var m = Math.tan(fov/2)*cameraHeight;
+        var b = Math.tan(beta)*cameraHeight;
+        var cameraShift = m + b;
+
+        if (!up) {
+            cameraShift = -cameraShift;
+            angle = -angle;
+        }
+        camera.moveDown(cameraShift);
+        camera.lookUp(angle);
+
+        var d = ellipsoid.cartesianToCartographic(camera.position).height - cameraHeight;
+        var delta = Math.atan(cameraMagnitude/(m + b));
+        var gamma = delta + beta - Math.PI/2;
+        var e = d/Math.cos(gamma);
+        var forward = Math.cos(fov)*e;
+        var downward = Math.sin(fov)*e;
+
+        if (!up) {
+            forward = -forward;
+            downward = -downward;
+        }
+        if (duration) {
+            var count = 0;
+            var iterations = 35;
+            var interval = duration/iterations;
+
+            forward = forward/iterations;
+            downward = downward/iterations;
+
+            var id = setInterval(function() {
+                camera.moveForward(forward);
+                camera.moveDown(downward);
+                count++;
+                if (count==iterations) {
+                    clearInterval(id);
+                }
+            }, interval);
+            return;
+        } else {
+            camera.moveForward(forward);
+            camera.moveDown(downward);
+        }
+      };
+
+    /***************************************************************/
+    /* toggleMapOpacity
+    /***************************************************************/
+
+      var toggleMapOpacity = function() {
+        var style = document.getElementById('map').style;
+        style.opacity = style.opacity || 1;
+        style.opacity = (style.opacity == 0) ? 1 : 0;
+      };
+
+    /***************************************************************/
+    /* #toggle onclick
+    /***************************************************************/
+
+      document.getElementById('toggle').onclick = function() {
+        var delay = 1000;
+        if (tilted) {
+          setTimeout(toggleMapOpacity, 800);
+        } else {
+          toggleMapOpacity();
+        }
+        setTiltedView(1*(1 - 2*tilted), 0);
+        tilted = ! tilted;
+        var styles = document.getElementById('indicator').style;
+        styles.left = (tilted) ? '1.5em' : 0;
+        styles.borderRadius = (tilted) ? '0 4px 4px 0' : '4px 0 0 4px';
+        document.querySelector('.d2').style.color = (tilted) ? 'black' : 'white';
+        document.querySelector('.d3').style.color = (!tilted) ? 'black' : 'white';
+      }
+
+    /***************************************************************/
+    /* rotate
+    /***************************************************************/
+
+      var rotate = function(angle) {
+        var current = normalize(view.getRotation());
+        var className;
+        view.setRotation(current);
+        var rotate = ol.animation.rotate({
+          duration: 300,
+          rotation: view.getRotation()
+        });
+        map.beforeRender(rotate);
+        if ((angle - current) > Math.PI) {
+          angle -= 2*Math.PI;
+        }
+        if ((angle - current) < -Math.PI) {
+          angle += 2*Math.PI;
+        }
+        view.setRotation(angle);
+        switch(normalize(angle)) {
+          case 0:
+            className = '';
+            break;
+          case Math.PI:
+            className = 'south';
+            break;
+          case Math.PI/2:
+            className = 'east';
+            break;
+          case Math.PI*1.5:
+            className = 'west';
+            break;
+        }
+        document.querySelector('.rosace').className = 'rosace ' + className;
+      };
+      document.getElementById('north').onclick = function() {
+        rotate(0);
+      }
+      document.getElementById('south').onclick = function() {
+        rotate(Math.PI);
+      }
+      document.getElementById('east').onclick = function() {
+        rotate(Math.PI/2);
+      }
+      document.getElementById('west').onclick = function() {
+        rotate(Math.PI*1.5);
+      }
+
+    /***************************************************************/
+    /* pan
+    /***************************************************************/
+
+      var pan = function(angle) {
+        var view = map.getView().getView2D();
+        var resolution = view.getResolution();
+        var center = view.getCenter();
+        var rotation = view.getRotation();
+        var delta = 50 * resolution;
+        switch(normalize(angle - rotation)) {
+          case 0:
+            center = [ center[0], center[1] + delta ];
+            break;
+          case Math.PI:
+            center = [ center[0], center[1] - delta ];
+            break;
+          case Math.PI/2:
+            center = [ center[0] + delta, center[1] ];
+            break;
+          case Math.PI*1.5:
+            center = [ center[0] - delta, center[1] ];
+            break;
+        }
+        var pan = ol.animation.pan({
+          duration: 300,
+          source: view.getCenter()
+        });
+        map.beforeRender(pan);
+        view.setCenter(center);
+      };
+
+    /***************************************************************/
+    /* normalize
+    /***************************************************************/
+
+      var normalize = function(angle) {
+        if (angle > Math.PI*1.5) {
+          return angle - Math.PI*2;
+        }
+        if (angle < 0) {
+          return angle + Math.PI*2;
+        }
+        return angle;
+      };
+      document.getElementById('p_north').onclick = function() {
+        pan(0);
+      }
+      document.getElementById('p_south').onclick = function() {
+        pan(Math.PI);
+      }
+      document.getElementById('p_east').onclick = function() {
+        pan(Math.PI/2);
+      }
+      document.getElementById('p_west').onclick = function() {
+        pan(Math.PI*1.5);
+      }
+
+    /***************************************************************/
+    /* .ol-zoom
+    /***************************************************************/
+
+      var zoom = document.querySelector('.ol-zoom');
+      document.body.appendChild(zoom);
+      zoom.style.top = '6%';
+      zoom.style.left = '6%';
+
+    </script>
+  </body>
+</html>
